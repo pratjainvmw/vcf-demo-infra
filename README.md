@@ -1,32 +1,21 @@
 # VCF Demo Infrastructure (`vcf-demo-infra`)
 
-Platform GitOps repository for managing VMware Cloud Foundation (VCF) Supervisor resources, VKS guest clusters, and VKS Add-ons (`cert-manager`, `istio`, `headlamp`).
+Declarative manifests for a VKS guest cluster and its VKS add-ons (`cert-manager`, `istio`, `headlamp`) on a VCF Supervisor. Bring your own Argo CD (or apply with `kubectl`).
 
-## Architecture Overview
+## What gets created
 
-This repository decouples **Platform Infrastructure** from **Application Delivery**:
+All resources live in the Supervisor namespace **`prod-2r8k2`**:
 
-1. **Control Plane Supervisor Namespace (`infra-fbhdn`)**:
-   - Hosts ArgoCD Control Plane and `AppProject` declarations (`infra.yaml` and `tenant-apps.yaml`).
-2. **Workload Supervisor Namespace (`prod-2r8k2`)**:
-   - Hosts `vks-argo` VKS Guest Cluster Custom Resource and `AddonInstall` Custom Resources (`vks-argo-cert-manager`, `vks-argo-istio`, `vks-argo-headlamp`) and the `vks-argo-headlamp` `AddonConfig`.
-3. **Application Workload Guest Cluster (`vks-argo`)**:
-   - Workload applications (`bookstore`, `reader`, `chatbot`) are managed via `DemoApp/argocd-apps/apps.yaml` pointing to external application repositories.
+- `Cluster` **`vks-argo`** (CAPI, `builtin-generic-v3.7.0` ClusterClass, Kubernetes v1.36.2)
+- `AddonInstall` `vks-argo-cert-manager`, `vks-argo-istio`, `vks-argo-headlamp`
+- `AddonConfig` `vks-argo-headlamp` (Gateway API exposure)
 
 ## Directory Structure
 
 ```
 vcf-demo-infra/
-├── instance/
-│   └── argo-instance.yaml    # ArgoCD Supervisor Service CR targeting infra-fbhdn
-├── argocd/
-│   ├── projects/
-│   │   ├── infra.yaml            # Platform AppProject
-│   │   └── tenant-apps.yaml      # Tenant AppProject
-│   ├── appsets/
-│   │   └── cluster-provisioning.yaml # ApplicationSet for VKS cluster CRDs & add-ons
-│   └── root-app.yaml             # Root Application driving 100% GitOps
 ├── infrastructure/
+│   ├── prod/                     # Entry point: clusters + add-ons for prod
 │   ├── clusters/
 │   │   ├── base/                 # CAPI Cluster base template
 │   │   └── overlays/prod/        # Prod overlay (Supervisor NS: prod-2r8k2, Name: vks-argo)
@@ -36,23 +25,38 @@ vcf-demo-infra/
 └── README.md
 ```
 
-## Quick Start
+## Deploy
 
-1. Deploy ArgoCD instance to the Supervisor namespace (`infra-fbhdn`):
-   ```bash
-   kubectl apply -f instance/argo-instance.yaml -n infra-fbhdn
-   ```
+### With your existing Argo CD
 
-2. Register destination cluster/namespace and apply Root Application (100% GitOps):
-   ```bash
-   kubectl apply -f argocd/root-app.yaml -n infra-fbhdn
-   ```
+Create an Application that points at `infrastructure/prod` and targets the Supervisor. Adjust the Argo CD namespace, project and destination to match your install:
 
-3. Deploy cluster infrastructure & VKS Add-ons to `prod-2r8k2` (or let ArgoCD sync via `root-infra`):
-   ```bash
-   kubectl kustomize infrastructure/clusters/overlays/prod | kubectl apply -f -
-   kubectl kustomize infrastructure/addons/overlays/prod | kubectl apply -f -
-   ```
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vks-argo-infra
+  namespace: <argocd-namespace>
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/pratjainvmw/vcf-demo-infra.git
+    targetRevision: main
+    path: infrastructure/prod
+  destination:
+    name: supervisor              # the Supervisor as registered in Argo CD
+    namespace: prod-2r8k2
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+```
+
+### With kubectl (Supervisor context)
+
+```bash
+kubectl apply -k infrastructure/prod
+```
 
 ## Headlamp (Gateway API)
 
