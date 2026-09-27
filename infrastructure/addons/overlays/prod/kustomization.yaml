@@ -18,4 +18,4 @@ patches:
     patch: |-
       - op: replace
         path: /spec/values/hostname
-        value: headlamp.vks-argo.example.com
+        value: headlamp-gamora.lab.worker-node.com
