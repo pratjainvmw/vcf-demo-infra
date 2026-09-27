@@ -1,16 +1,16 @@
-# VKS cluster "vks-drax" in vSphere Namespace "drax", with cert-manager, istio and headlamp add-ons.
-# To add another cluster: copy this folder, rename it, and replace every "vks-drax" / "drax" below.
+# VKS cluster "vks-cluster-groot" in vSphere Namespace "groot", with cert-manager, istio and headlamp add-ons.
+# To add another cluster: copy this folder, rename it, and replace every "vks-cluster-groot" / "groot" below.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # vSphere Namespace for the Cluster and all its add-on resources (must already exist).
-namespace: drax
+namespace: groot
 
 resources:
   - ../../base/cluster
   - ../../base/addons
 
-# Prefix add-on objects with the cluster name (vks-drax-cert-manager, vks-drax-headlamp, ...).
+# Prefix add-on objects with the cluster name (vks-cluster-groot-cert-manager, vks-cluster-groot-headlamp, ...).
 # The Headlamp AddonConfig MUST be named <clusterName>-headlamp to be picked up.
 # The Cluster itself is not prefixed; its name is set by the patch below.
 transformers:
@@ -19,7 +19,7 @@ transformers:
     kind: PrefixSuffixTransformer
     metadata:
       name: addon-name-prefix
-    prefix: vks-drax-
+    prefix: vks-cluster-groot-
     fieldSpecs:
       - kind: AddonInstall
         path: metadata/name
@@ -33,18 +33,18 @@ patches:
     patch: |-
       - op: replace
         path: /metadata/name
-        value: vks-drax
+        value: vks-cluster-groot
   # Point every add-on at this cluster
   - target:
       kind: AddonInstall
     patch: |-
       - op: replace
         path: /spec/clusters/0/selector/matchLabels/cluster.x-k8s.io~1cluster-name
-        value: vks-drax
+        value: vks-cluster-groot
   # Headlamp UI hostname — change to a name you can publish in DNS
   - target:
       kind: AddonConfig
     patch: |-
       - op: replace
         path: /spec/values/hostname
-        value: headlamp-drax.lab.worker-node.com
+        value: headlamp-groot.lab.worker-node.com

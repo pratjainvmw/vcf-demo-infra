@@ -1,5 +1,5 @@
-# VKS cluster "vks-argo" in vSphere Namespace "mantis", with cert-manager, istio and headlamp add-ons.
-# To add another cluster: copy this folder, rename it, and replace every "vks-argo" / "mantis" below.
+# VKS cluster "vks-cluster-mantis" in vSphere Namespace "mantis", with cert-manager, istio and headlamp add-ons.
+# To add another cluster: copy this folder, rename it, and replace every "vks-cluster-mantis" / "mantis" below.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -10,7 +10,7 @@ resources:
   - ../../base/cluster
   - ../../base/addons
 
-# Prefix add-on objects with the cluster name (vks-argo-cert-manager, vks-argo-headlamp, ...).
+# Prefix add-on objects with the cluster name (vks-cluster-mantis-cert-manager, vks-cluster-mantis-headlamp, ...).
 # The Headlamp AddonConfig MUST be named <clusterName>-headlamp to be picked up.
 # The Cluster itself is not prefixed; its name is set by the patch below.
 transformers:
@@ -19,7 +19,7 @@ transformers:
     kind: PrefixSuffixTransformer
     metadata:
       name: addon-name-prefix
-    prefix: vks-argo-
+    prefix: vks-cluster-mantis-
     fieldSpecs:
       - kind: AddonInstall
         path: metadata/name
@@ -33,14 +33,14 @@ patches:
     patch: |-
       - op: replace
         path: /metadata/name
-        value: vks-argo
+        value: vks-cluster-mantis
   # Point every add-on at this cluster
   - target:
       kind: AddonInstall
     patch: |-
       - op: replace
         path: /spec/clusters/0/selector/matchLabels/cluster.x-k8s.io~1cluster-name
-        value: vks-argo
+        value: vks-cluster-mantis
   # Headlamp UI hostname — change to a name you can publish in DNS
   - target:
       kind: AddonConfig

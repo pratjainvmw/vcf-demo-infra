@@ -17,7 +17,7 @@ spec:
 ---
 # AddonConfig values are a sparse overlay on the add-on's schema defaults.
 # NAME IS A BINDING CONTRACT: it must resolve to <clusterName>-headlamp
-# (each clusters/<name>/kustomization.yaml prefixes it, e.g. "vks-argo-headlamp").
+# (each clusters/<name>/kustomization.yaml prefixes it, e.g. "vks-cluster-mantis-headlamp").
 # A mismatched name is silently skipped and defaults are used.
 apiVersion: addons.kubernetes.vmware.com/v1alpha1
 kind: AddonConfig

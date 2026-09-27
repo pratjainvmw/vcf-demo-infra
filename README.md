@@ -4,11 +4,11 @@ Declarative manifests for multiple VKS guest clusters and their VKS add-ons (`ce
 
 ## Clusters
 
-| Cluster | vSphere Namespace | Folder | Headlamp URL |
+| Cluster | vSphere Namespace | Folder / Argo CD app | Headlamp URL |
 | --- | --- | --- | --- |
-| `vks-argo` | `mantis` | `clusters/vks-argo/` | https://headlamp-mantis.lab.worker-node.com |
-| `vks-drax` | `drax` | `clusters/vks-drax/` | https://headlamp-drax.lab.worker-node.com |
-| `vks-groot` | `groot` | `clusters/vks-groot/` | https://headlamp-groot.lab.worker-node.com |
+| `vks-cluster-mantis` | `mantis` | `clusters/vks-cluster-mantis/` | https://headlamp-mantis.lab.worker-node.com |
+| `vks-cluster-drax` | `drax` | `clusters/vks-cluster-drax/` | https://headlamp-drax.lab.worker-node.com |
+| `vks-cluster-groot` | `groot` | `clusters/vks-cluster-groot/` | https://headlamp-groot.lab.worker-node.com |
 
 Each cluster gets:
 
@@ -24,9 +24,9 @@ vcf-demo-infra/
 │   ├── cluster/                  # Shared CAPI Cluster template (VM class, storage, K8s version, node pools)
 │   └── addons/                   # Shared cert-manager, istio & headlamp AddonInstall (+ headlamp AddonConfig)
 ├── clusters/
-│   ├── vks-argo/                 # namespace: mantis
-│   ├── vks-drax/                 # namespace: drax
-│   └── vks-groot/                # namespace: groot
+│   ├── vks-cluster-mantis/       # namespace: mantis
+│   ├── vks-cluster-drax/         # namespace: drax
+│   └── vks-cluster-groot/        # namespace: groot
 └── README.md
 ```
 
@@ -44,7 +44,7 @@ Every vSphere Namespace used (`mantis`, `drax`, `groot`) must already exist (cre
 
 ## Deploy with Argo CD (ApplicationSet)
 
-Create this ApplicationSet once in your existing Argo CD (it is not stored in this repo). It creates one Application per folder under `clusters/`: `vks-argo`, `vks-drax`, `vks-groot`. Set `metadata.namespace` to your Argo CD namespace and check `destination.server` matches the Supervisor in `argocd cluster list` (use `https://kubernetes.default.svc` if Argo CD runs on the Supervisor itself).
+Create this ApplicationSet once in your existing Argo CD (it is not stored in this repo). It creates one Application per folder under `clusters/`: `vks-cluster-mantis`, `vks-cluster-drax`, `vks-cluster-groot`. Set `metadata.namespace` to your Argo CD namespace and check `destination.server` matches the Supervisor in `argocd cluster list` (use `https://kubernetes.default.svc` if Argo CD runs on the Supervisor itself).
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -63,7 +63,7 @@ spec:
           - path: clusters/*
   template:
     metadata:
-      name: '{{.path.basename}}'          # e.g. vks-argo, vks-drax, vks-groot
+      name: '{{.path.basename}}'          # e.g. vks-cluster-mantis, vks-cluster-drax, vks-cluster-groot
     spec:
       project: default
       source:
@@ -88,24 +88,18 @@ kubectl apply -f vks-clusters-appset.yaml
 
 `preserveResourcesOnDeletion: true` means deleting a folder or the ApplicationSet does **not** delete running VKS clusters. Delete a cluster explicitly when you mean to.
 
-### Migrating from the single `vks-cluster-1` Application
+### Renaming a cluster
 
-`vks-argo` was previously managed by an Application pointing at `infrastructure/prod`. Remove that Application **without** cascading before applying the ApplicationSet, so the running cluster is adopted rather than deleted:
-
-```bash
-argocd app delete vks-cluster-1 --cascade=false
-kubectl apply -f vks-clusters-appset.yaml
-```
-
-The rendered manifests for `vks-argo` are unchanged by the restructure, so the new `vks-argo` app syncs with no changes.
+The folder name becomes the Argo CD Application name, and the cluster name is set inside `clusters/<folder>/kustomization.yaml`. A VKS cluster cannot be renamed or moved to another vSphere Namespace in place: changing either creates a new cluster. With `prune: false`, the old `Cluster` and its `AddonInstall`/`AddonConfig` objects stay on the Supervisor until you delete them.
 
 ## Add a cluster
 
 ```bash
-cp -r clusters/vks-drax clusters/vks-<new>
-sed -i 's/vks-drax/vks-<new>/g; s/^namespace: drax/namespace: <vsphere-namespace>/; s/headlamp-drax/headlamp-<vsphere-namespace>/' clusters/vks-<new>/kustomization.yaml
-kubectl kustomize clusters/vks-<new>        # review
-git add clusters/vks-<new> && git commit -m "feat: add vks-<new>" && git push
+NS=<vsphere-namespace>
+cp -r clusters/vks-cluster-drax clusters/vks-cluster-$NS
+sed -i "s/drax/$NS/g" clusters/vks-cluster-$NS/kustomization.yaml
+kubectl kustomize clusters/vks-cluster-$NS        # review
+git add clusters/vks-cluster-$NS && git commit -m "feat: add vks-cluster-$NS" && git push
 ```
 
 The ApplicationSet picks up the new folder automatically.
@@ -115,7 +109,7 @@ To give one cluster different settings (e.g. VM class or worker count), add a pa
 ## Deploy with kubectl (Supervisor context)
 
 ```bash
-kubectl apply -k clusters/vks-drax
+kubectl apply -k clusters/vks-cluster-drax
 ```
 
 ## Headlamp (Gateway API)
@@ -125,7 +119,7 @@ kubectl apply -k clusters/vks-drax
 - **Gateway API**: `gatewayApi.enabled: true` with `className: istio`. The add-on creates its own `Gateway` (`headlamp-gateway`) and HTTPRoute, with a dedicated LoadBalancer. The Gateway API CRDs ship with VKS; the `istio` add-on provides the controller.
 - **TLS**: the add-on creates a self-signed cert-manager `Issuer`/`Certificate` (needs the `cert-manager` add-on).
 - **Hostname**: `headlamp-<vsphere-namespace>.lab.worker-node.com`, set per cluster in `clusters/<name>/kustomization.yaml`. Point a DNS A record at the Gateway's LoadBalancer IP. The Gateway only answers TLS for this name (SNI), so browsing to the IP or `openssl s_client` without `-servername` returns no certificate.
-- **AddonConfig naming**: must resolve to `<clusterName>-headlamp` (e.g. `vks-argo-headlamp`); the per-cluster prefix transformer handles this, otherwise it is silently ignored.
+- **AddonConfig naming**: must resolve to `<clusterName>-headlamp` (e.g. `vks-cluster-mantis-headlamp`); the per-cluster prefix transformer handles this, otherwise it is silently ignored.
 
 Verify (workload cluster context):
 
