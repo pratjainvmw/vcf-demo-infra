@@ -4,7 +4,7 @@ Declarative manifests for a VKS guest cluster and its VKS add-ons (`cert-manager
 
 ## What gets created
 
-All resources live in the Supervisor namespace **`prod-2r8k2`**:
+All resources live in the vSphere Namespace **`gamora`** on the Supervisor:
 
 - `Cluster` **`vks-argo`** (CAPI, `builtin-generic-v3.7.0` ClusterClass, Kubernetes v1.36.2)
 - `AddonInstall` `vks-argo-cert-manager`, `vks-argo-istio`, `vks-argo-headlamp`
@@ -18,39 +18,59 @@ vcf-demo-infra/
 │   ├── prod/                     # Entry point: clusters + add-ons for prod
 │   ├── clusters/
 │   │   ├── base/                 # CAPI Cluster base template
-│   │   └── overlays/prod/        # Prod overlay (Supervisor NS: prod-2r8k2, Name: vks-argo)
+│   │   └── overlays/prod/        # Prod overlay (Supervisor NS: gamora, Name: vks-argo)
 │   └── addons/
 │       ├── base/                 # cert-manager, istio & headlamp AddonInstall base (+ headlamp AddonConfig)
-│       └── overlays/prod/        # Prod overlay (Supervisor NS: prod-2r8k2, Prefix: vks-argo-)
+│       └── overlays/prod/        # Prod overlay (Supervisor NS: gamora, Prefix: vks-argo-)
 └── README.md
 ```
 
 ## Deploy
 
+### Prerequisites
+
+The `gamora` vSphere Namespace must already exist (created in vCenter or VCF Automation) and have:
+
+- VM class `best-effort-large` assigned
+- Storage policy `hawkeye-storage-policy` assigned
+- Kubernetes release v1.36.2 available (`kubectl get kr`)
+- Enough quota for 1 control-plane node and 2–3 workers
+- Edit rights for the Argo CD service account
+
 ### With your existing Argo CD
 
-Create an Application that points at `infrastructure/prod` and targets the Supervisor. Adjust the Argo CD namespace, project and destination to match your install:
+Create an Application that points at `infrastructure/prod` and targets the Supervisor. `destination.server` must match the Supervisor as registered in Argo CD (`argocd cluster list`); use `https://kubernetes.default.svc` if Argo CD runs on the Supervisor itself.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: vks-argo-infra
-  namespace: <argocd-namespace>
+  name: vks-cluster-1
+  namespace: <argocd-namespace>           # where Argo CD is installed
 spec:
   project: default
   source:
     repoURL: https://github.com/pratjainvmw/vcf-demo-infra.git
-    targetRevision: main
+    targetRevision: HEAD
     path: infrastructure/prod
   destination:
-    name: supervisor              # the Supervisor as registered in Argo CD
-    namespace: prod-2r8k2
+    server: https://172.16.24.6:6443      # Supervisor API endpoint
+    namespace: gamora
   syncPolicy:
     automated:
-      prune: true
-      selfHeal: true
+      prune: false
+      selfHeal: false
 ```
+
+### Changing the namespace
+
+The namespace is set by kustomize, so the Argo CD `destination.namespace` alone does not move the resources. Keep these three in sync:
+
+1. `infrastructure/clusters/overlays/prod/kustomization.yaml` → `namespace:`
+2. `infrastructure/addons/overlays/prod/kustomization.yaml` → `namespace:`
+3. The Argo CD Application → `spec.destination.namespace`
+
+The `Cluster`, its `AddonInstall`s and the Headlamp `AddonConfig` must all be in the same namespace.
 
 ### With kubectl (Supervisor context)
 
