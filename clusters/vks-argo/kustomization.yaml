@@ -1,10 +1,10 @@
-# VKS cluster "vks-argo" in vSphere Namespace "gamora", with cert-manager, istio and headlamp add-ons.
-# To add another cluster: copy this folder, rename it, and replace every "vks-argo" / "gamora" below.
+# VKS cluster "vks-argo" in vSphere Namespace "mantis", with cert-manager, istio and headlamp add-ons.
+# To add another cluster: copy this folder, rename it, and replace every "vks-argo" / "mantis" below.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # vSphere Namespace for the Cluster and all its add-on resources (must already exist).
-namespace: gamora
+namespace: mantis
 
 resources:
   - ../../base/cluster
@@ -47,4 +47,4 @@ patches:
     patch: |-
       - op: replace
         path: /spec/values/hostname
-        value: headlamp-gamora.lab.worker-node.com
+        value: headlamp-mantis.lab.worker-node.com

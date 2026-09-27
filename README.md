@@ -6,7 +6,7 @@ Declarative manifests for multiple VKS guest clusters and their VKS add-ons (`ce
 
 | Cluster | vSphere Namespace | Folder | Headlamp URL |
 | --- | --- | --- | --- |
-| `vks-argo` | `gamora` | `clusters/vks-argo/` | https://headlamp-gamora.lab.worker-node.com |
+| `vks-argo` | `mantis` | `clusters/vks-argo/` | https://headlamp-mantis.lab.worker-node.com |
 | `vks-drax` | `drax` | `clusters/vks-drax/` | https://headlamp-drax.lab.worker-node.com |
 | `vks-groot` | `groot` | `clusters/vks-groot/` | https://headlamp-groot.lab.worker-node.com |
 
@@ -24,7 +24,7 @@ vcf-demo-infra/
 │   ├── cluster/                  # Shared CAPI Cluster template (VM class, storage, K8s version, node pools)
 │   └── addons/                   # Shared cert-manager, istio & headlamp AddonInstall (+ headlamp AddonConfig)
 ├── clusters/
-│   ├── vks-argo/                 # namespace: gamora
+│   ├── vks-argo/                 # namespace: mantis
 │   ├── vks-drax/                 # namespace: drax
 │   └── vks-groot/                # namespace: groot
 └── README.md
@@ -34,7 +34,7 @@ Each `clusters/<name>/kustomization.yaml` sets only what differs per cluster: th
 
 ## Prerequisites
 
-Every vSphere Namespace used (`gamora`, `drax`, `groot`) must already exist (created in vCenter or VCF Automation) and have:
+Every vSphere Namespace used (`mantis`, `drax`, `groot`) must already exist (created in vCenter or VCF Automation) and have:
 
 - VM class `best-effort-large` assigned
 - Storage policy `hawkeye-storage-policy` assigned
