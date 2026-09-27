@@ -1,7 +1,0 @@
-# Single entry point for the prod environment: VKS cluster + its add-ons.
-# Point your existing Argo CD Application (or kubectl -k) at this path.
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-  - ../clusters/overlays/prod
-  - ../addons/overlays/prod

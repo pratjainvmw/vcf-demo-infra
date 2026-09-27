@@ -1,0 +1,50 @@
+# VKS cluster "vks-argo" in vSphere Namespace "gamora", with cert-manager, istio and headlamp add-ons.
+# To add another cluster: copy this folder, rename it, and replace every "vks-argo" / "gamora" below.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# vSphere Namespace for the Cluster and all its add-on resources (must already exist).
+namespace: gamora
+
+resources:
+  - ../../base/cluster
+  - ../../base/addons
+
+# Prefix add-on objects with the cluster name (vks-argo-cert-manager, vks-argo-headlamp, ...).
+# The Headlamp AddonConfig MUST be named <clusterName>-headlamp to be picked up.
+# The Cluster itself is not prefixed; its name is set by the patch below.
+transformers:
+  - |-
+    apiVersion: builtin
+    kind: PrefixSuffixTransformer
+    metadata:
+      name: addon-name-prefix
+    prefix: vks-argo-
+    fieldSpecs:
+      - kind: AddonInstall
+        path: metadata/name
+      - kind: AddonConfig
+        path: metadata/name
+
+patches:
+  # Cluster name
+  - target:
+      kind: Cluster
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: vks-argo
+  # Point every add-on at this cluster
+  - target:
+      kind: AddonInstall
+    patch: |-
+      - op: replace
+        path: /spec/clusters/0/selector/matchLabels/cluster.x-k8s.io~1cluster-name
+        value: vks-argo
+  # Headlamp UI hostname — change to a name you can publish in DNS
+  - target:
+      kind: AddonConfig
+    patch: |-
+      - op: replace
+        path: /spec/values/hostname
+        value: headlamp-gamora.lab.worker-node.com
