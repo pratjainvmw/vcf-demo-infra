@@ -1,6 +1,6 @@
 # VCF Demo Infrastructure (`vcf-demo-infra`)
 
-Declarative manifests for multiple VKS guest clusters and their VKS add-ons (`cert-manager`, `istio`, `headlamp`) on a VCF Supervisor, delivered by an Argo CD ApplicationSet (one Argo CD Application per cluster folder).
+Declarative manifests for multiple VKS guest clusters and their VKS add-ons (`cert-manager`, `istio`, `headlamp`) on a VCF Supervisor. Argo CD itself is managed outside this repo; point an ApplicationSet (or one Application per cluster) at `clusters/*`.
 
 ## Clusters
 
@@ -20,8 +20,6 @@ Each cluster gets:
 
 ```
 vcf-demo-infra/
-├── argocd/
-│   └── vks-clusters-appset.yaml  # ApplicationSet: one Argo CD app per clusters/<name>/
 ├── base/
 │   ├── cluster/                  # Shared CAPI Cluster template (VM class, storage, K8s version, node pools)
 │   └── addons/                   # Shared cert-manager, istio & headlamp AddonInstall (+ headlamp AddonConfig)
@@ -46,14 +44,49 @@ Every vSphere Namespace used (`gamora`, `drax`, `groot`) must already exist (cre
 
 ## Deploy with Argo CD (ApplicationSet)
 
-1. Edit `argocd/vks-clusters-appset.yaml`: set `metadata.namespace` to your Argo CD namespace and check `destination.server` matches the Supervisor in `argocd cluster list` (use `https://kubernetes.default.svc` if Argo CD runs on the Supervisor itself).
-2. Apply it once:
-   ```bash
-   kubectl apply -n <argocd-namespace> -f argocd/vks-clusters-appset.yaml
-   ```
-3. Argo CD creates one Application per folder: `vks-argo`, `vks-drax`, `vks-groot`.
+Create this ApplicationSet once in your existing Argo CD (it is not stored in this repo). It creates one Application per folder under `clusters/`: `vks-argo`, `vks-drax`, `vks-groot`. Set `metadata.namespace` to your Argo CD namespace and check `destination.server` matches the Supervisor in `argocd cluster list` (use `https://kubernetes.default.svc` if Argo CD runs on the Supervisor itself).
 
-The ApplicationSet uses `preserveResourcesOnDeletion: true`, so deleting a folder or the ApplicationSet does **not** delete running VKS clusters. Delete a cluster explicitly when you mean to.
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: vks-clusters
+  namespace: <argocd-namespace>           # where Argo CD is installed
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/pratjainvmw/vcf-demo-infra.git
+        revision: HEAD
+        directories:
+          - path: clusters/*
+  template:
+    metadata:
+      name: '{{.path.basename}}'          # e.g. vks-argo, vks-drax, vks-groot
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/pratjainvmw/vcf-demo-infra.git
+        targetRevision: HEAD
+        path: '{{.path.path}}'
+      destination:
+        server: https://172.16.24.6:6443  # Supervisor, as registered in Argo CD (argocd cluster list)
+        # No namespace here: each clusters/<name>/kustomization.yaml sets its own vSphere Namespace.
+      syncPolicy:
+        automated:
+          prune: false
+          selfHeal: false
+  # Keep generated apps (and their VKS clusters) if a folder is removed or the ApplicationSet is deleted.
+  syncPolicy:
+    preserveResourcesOnDeletion: true
+```
+
+```bash
+kubectl apply -f vks-clusters-appset.yaml
+```
+
+`preserveResourcesOnDeletion: true` means deleting a folder or the ApplicationSet does **not** delete running VKS clusters. Delete a cluster explicitly when you mean to.
 
 ### Migrating from the single `vks-cluster-1` Application
 
@@ -61,7 +94,7 @@ The ApplicationSet uses `preserveResourcesOnDeletion: true`, so deleting a folde
 
 ```bash
 argocd app delete vks-cluster-1 --cascade=false
-kubectl apply -n <argocd-namespace> -f argocd/vks-clusters-appset.yaml
+kubectl apply -f vks-clusters-appset.yaml
 ```
 
 The rendered manifests for `vks-argo` are unchanged by the restructure, so the new `vks-argo` app syncs with no changes.
