@@ -1,0 +1,40 @@
+# Headlamp VKS add-on (Ecosystem tier) — requires VKS 3.7+, Kubernetes 1.36+, VCF 9.1+.
+# Depends on:
+#   - cert-manager add-on: Headlamp creates its own Issuer/Certificate for Gateway TLS.
+#   - istio add-on: provides the `istio` GatewayClass (Gateway API controller).
+#     The Gateway API CRDs ship with the VKS platform; only the controller is needed.
+apiVersion: addons.kubernetes.vmware.com/v1alpha1
+kind: AddonInstall
+metadata:
+  name: headlamp
+spec:
+  addonRef:
+    name: headlamp
+  clusters:
+    - selector:
+        matchLabels:
+          cluster.x-k8s.io/cluster-name: REPLACE_CLUSTER_NAME
+---
+# AddonConfig values are a sparse overlay on the add-on's schema defaults.
+# NAME IS A BINDING CONTRACT: it must resolve to <clusterName>-headlamp
+# (the overlay's namePrefix turns "headlamp" into "vks-argo-headlamp").
+# A mismatched name is silently skipped and defaults are used.
+apiVersion: addons.kubernetes.vmware.com/v1alpha1
+kind: AddonConfig
+metadata:
+  name: headlamp
+  annotations:
+    clusteraddon.addons.kubernetes.vmware.com/owned-for-deletion: "true"
+spec:
+  values:
+    # FQDN for the UI. Publish a DNS A record pointing at the headlamp-gateway
+    # LoadBalancer IP (kubectl get svc -n headlamp), not the istio ingress IP.
+    hostname: REPLACE_HEADLAMP_HOSTNAME
+    gatewayApi:
+      enabled: true              # expose via Gateway API (Gateway + HTTPRoute), not Ingress
+      gateway:
+        className: istio         # GatewayClass provided by the istio add-on
+        create: true             # add-on owns the Gateway and its dedicated LoadBalancer
+        name: headlamp-gateway
+    oidc:
+      enabled: false             # token login; see README to enable OIDC

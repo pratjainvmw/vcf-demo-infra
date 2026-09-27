@@ -11,3 +11,11 @@ patches:
       - op: replace
         path: /spec/clusters/0/selector/matchLabels/cluster.x-k8s.io~1cluster-name
         value: vks-argo
+  # Headlamp UI hostname for the vks-argo cluster — change to a name you can publish in DNS.
+  - target:
+      kind: AddonConfig
+      name: headlamp
+    patch: |-
+      - op: replace
+        path: /spec/values/hostname
+        value: headlamp.vks-argo.example.com
