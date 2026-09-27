@@ -26,7 +26,7 @@ spec:
           persistentVolumes:
             defaultStorageClass: hawkeye-storage-policy
     controlPlane:
-      replicas: 1
+      replicas: 1                   # single control-plane node
       metadata:
         annotations:
           run.tanzu.vmware.com/resolve-os-image: >-
@@ -36,10 +36,9 @@ spec:
       machineDeployments:
         - class: node-pool
           name: vks-ubuntu-np
+          replicas: 3               # fixed worker count (autoscaler annotations removed)
           metadata:
             annotations:
-              cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size: '3'
-              cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size: '2'
               run.tanzu.vmware.com/resolve-os-image: >-
                 os-name=ubuntu,
                 os-version=24.04

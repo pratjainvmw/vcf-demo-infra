@@ -12,7 +12,7 @@ Declarative manifests for multiple VKS guest clusters and their VKS add-ons (`ce
 
 Each cluster gets:
 
-- `Cluster` `<name>` (CAPI, `builtin-generic-v3.7.0` ClusterClass, Kubernetes v1.36.2, storage `hawkeye-storage-policy`)
+- `Cluster` `<name>` (CAPI, `builtin-generic-v3.7.0` ClusterClass, Kubernetes v1.36.2, storage `hawkeye-storage-policy`, 1 control-plane node + 3 worker nodes)
 - `AddonInstall` `<name>-cert-manager`, `<name>-istio`, `<name>-headlamp`
 - `AddonConfig` `<name>-headlamp` (Gateway API exposure)
 
@@ -41,7 +41,7 @@ Every vSphere Namespace used (`gamora`, `drax`, `groot`) must already exist (cre
 - VM class `best-effort-large` assigned
 - Storage policy `hawkeye-storage-policy` assigned
 - Kubernetes release v1.36.2 available (`kubectl get kr`)
-- Enough quota for 1 control-plane node and 2–3 workers
+- Enough quota for 1 control-plane node and 3 workers (4 `best-effort-large` VMs per cluster)
 - Edit rights for the Argo CD service account
 
 ## Deploy with Argo CD (ApplicationSet)
