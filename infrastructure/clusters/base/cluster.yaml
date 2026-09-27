@@ -20,11 +20,11 @@ spec:
       - name: vmClass
         value: best-effort-large
       - name: storageClass
-        value: vsan-default-storage-policy
+        value: hawkeye-storage-policy
       - name: vsphereOptions
         value:
           persistentVolumes:
-            defaultStorageClass: vsan-default-storage-policy
+            defaultStorageClass: hawkeye-storage-policy
     controlPlane:
       replicas: 1
       metadata:
